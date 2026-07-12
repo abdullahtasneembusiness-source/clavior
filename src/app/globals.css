@@ -37,3 +37,18 @@ body {
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
+
+.notes-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+}
+
+.notes-editor ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.notes-editor b,
+.notes-editor strong {
+  font-weight: 600;
+}

@@ -66,3 +66,46 @@ export const ENGAGEMENT_COLOR: Record<EngagementLevel, string> = {
   cooling: "#F59E0B",
   "at-risk": "#EF4444",
 };
+
+// Simple recency heuristic — decays linearly to 0 over 30 days of
+// inactivity. Placeholder until the real engagement model (Session 9,
+// last message + video + file activity via Claude) replaces it.
+export function engagementScore(lastActiveAt: string | null): number {
+  if (!lastActiveAt) return 0;
+  const days = (Date.now() - new Date(lastActiveAt).getTime()) / (1000 * 60 * 60 * 24);
+  return Math.max(0, Math.round(100 - (days / 30) * 100));
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return "--:--";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+export function formatDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function formatClockTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
