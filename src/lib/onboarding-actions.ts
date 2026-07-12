@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { inviteClientByEmail } from "@/lib/invite-client";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,12 +60,7 @@ export async function completeOnboarding(
       status: "active",
     });
 
-    // Send invitation email via Supabase's invite feature.
-    // This creates an auth user and emails them a magic link.
-    await supabase.auth.admin.inviteUserByEmail(clientEmail, {
-      data: { invited_to_workspace: workspace.id, invited_as: "client" },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/accept-invite`,
-    });
+    await inviteClientByEmail(clientEmail, workspace.id);
   }
 
   // 3. Mark onboarding complete in user metadata.

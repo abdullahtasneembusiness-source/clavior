@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { completeOnboarding } from "@/lib/onboarding-actions";
 
 // ─── Slug helper (mirrors server-side) ───────────────────────────────────────

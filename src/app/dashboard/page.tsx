@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/lib/supabase/sign-out-action";
+import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import type { Client, Workspace } from "@/lib/types";
+
+const SEVEN_DAYS_AGO = () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -7,30 +11,77 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return (
-    <main className="flex min-h-screen flex-1 flex-col px-8 py-10">
-      <div className="flex items-center justify-between border-b border-border pb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Clovior</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Signed in as {user?.email}
-          </p>
-        </div>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-card"
-          >
-            Sign out
-          </button>
-        </form>
-      </div>
+  if (!user) redirect("/login");
 
-      <div className="card mt-8 flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">
-          Your client workspace grid will live here.
-        </p>
-      </div>
-    </main>
+  // A founder owns their workspace; a team member belongs to one via
+  // workspace_members. Try owner first since that's the primary dashboard flow.
+  let workspace: Pick<Workspace, "id" | "name"> | null = null;
+
+  const { data: ownedWorkspace } = await supabase
+    .from("workspaces")
+    .select("id, name")
+    .eq("owner_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (ownedWorkspace) {
+    workspace = ownedWorkspace;
+  } else {
+    const { data: membership } = await supabase
+      .from("workspace_members")
+      .select("workspaces (id, name)")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle<{ workspaces: Pick<Workspace, "id" | "name"> }>();
+
+    workspace = membership?.workspaces ?? null;
+  }
+
+  if (!workspace) redirect("/onboarding");
+
+  const [{ data: clients }, { data: recentMessages }, { count: messagesThisWeekCount }] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("*")
+      .eq("workspace_id", workspace.id)
+      .order("last_active_at", { ascending: false, nullsFirst: false }),
+    supabase
+      .from("messages")
+      .select("client_id, content, created_at")
+      .eq("workspace_id", workspace.id)
+      .not("client_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspace.id)
+      .gte("created_at", SEVEN_DAYS_AGO()),
+  ]);
+
+  const clientList: Client[] = clients ?? [];
+
+  const lastMessageByClientId: Record<string, string> = {};
+  for (const message of recentMessages ?? []) {
+    if (message.client_id && !(message.client_id in lastMessageByClientId)) {
+      lastMessageByClientId[message.client_id] = message.content;
+    }
+  }
+
+  const activeThisWeek = clientList.filter(
+    (c) => c.last_active_at && new Date(c.last_active_at) >= new Date(SEVEN_DAYS_AGO()),
+  ).length;
+
+  return (
+    <DashboardContent
+      workspaceId={workspace.id}
+      clients={clientList}
+      lastMessageByClientId={lastMessageByClientId}
+      stats={{
+        totalClients: clientList.length,
+        activeThisWeek,
+        messagesThisWeek: messagesThisWeekCount ?? 0,
+      }}
+    />
   );
 }
