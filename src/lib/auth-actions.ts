@@ -50,5 +50,5 @@ export async function signUp(
   if (error) return { error: error.message };
 
   // If email confirmation is required, signUp doesn't create a session yet.
-  redirect(data.session ? "/team-onboarding" : "/check-email");
+  redirect(data.session ? "/onboarding" : "/check-email");
 }
