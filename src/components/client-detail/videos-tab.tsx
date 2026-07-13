@@ -1,31 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { PlayIcon, CameraIcon } from "@/components/dashboard/icons";
-import { ComingSoonButton } from "@/components/dashboard/coming-soon-button";
 import { formatDuration, timeAgo } from "@/lib/dashboard-utils";
 import { VideoModal } from "./video-modal";
 import type { Video } from "@/lib/types";
 
 export function VideosTab({
-  videos,
+  clientId,
+  videos: initialVideos,
   senderMap,
+  onRecordVideo,
 }: {
+  clientId: string;
   videos: Video[];
   senderMap: Record<string, string>;
+  onRecordVideo: () => void;
 }) {
+  const [videos, setVideos] = useState(initialVideos);
   const [openVideo, setOpenVideo] = useState<Video | null>(null);
+  const [supabase] = useState(() => createClient());
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`videos:${clientId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "videos", filter: `client_id=eq.${clientId}` },
+        (payload) => {
+          const incoming = payload.new as Video;
+          setVideos((prev) => (prev.some((v) => v.id === incoming.id) ? prev : [incoming, ...prev]));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "videos", filter: `client_id=eq.${clientId}` },
+        (payload) => {
+          const updated = payload.new as Video;
+          setVideos((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
+          setOpenVideo((current) => (current?.id === updated.id ? updated : current));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clientId, supabase]);
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-6">
       <div className="flex items-center justify-end">
-        <ComingSoonButton
-          label="Record a video"
+        <button
+          onClick={onRecordVideo}
           className="flex items-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
         >
           <CameraIcon size={16} />
           Record video
-        </ComingSoonButton>
+        </button>
       </div>
 
       {videos.length === 0 ? (

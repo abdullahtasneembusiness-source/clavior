@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { MessageBubble } from "./message-bubble";
 import { MessageInput } from "./message-input";
-import type { Message } from "@/lib/types";
+import type { Message, Video } from "@/lib/types";
 
 export function MessagesTab({
   clientId,
@@ -12,14 +12,19 @@ export function MessagesTab({
   currentUserId,
   initialMessages,
   senderMap,
+  initialVideosById,
+  onRecordVideo,
 }: {
   clientId: string;
   workspaceId: string;
   currentUserId: string;
   initialMessages: Message[];
   senderMap: Record<string, string>;
+  initialVideosById: Record<string, Video>;
+  onRecordVideo: () => void;
 }) {
   const [messages, setMessages] = useState(initialMessages);
+  const [videosById, setVideosById] = useState(initialVideosById);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -39,6 +44,23 @@ export function MessagesTab({
         (payload) => {
           const incoming = payload.new as Message;
           setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+
+          // A video sent from another tab/session — fetch its details so the
+          // inline chip can render (own sends already seed this via `send`).
+          if (incoming.video_id) {
+            setVideosById((prev) => {
+              if (prev[incoming.video_id as string]) return prev;
+              supabase
+                .from("videos")
+                .select("*")
+                .eq("id", incoming.video_id as string)
+                .maybeSingle()
+                .then(({ data }) => {
+                  if (data) setVideosById((current) => ({ ...current, [data.id]: data as Video }));
+                });
+              return prev;
+            });
+          }
         },
       )
       .subscribe();
@@ -77,6 +99,7 @@ export function MessagesTab({
             <MessageBubble
               key={message.id}
               message={message}
+              video={message.video_id ? videosById[message.video_id] : undefined}
               senderName={senderMap[message.sender_id] ?? "Someone"}
               isOwn={message.sender_id === currentUserId}
             />
@@ -90,7 +113,7 @@ export function MessagesTab({
         </p>
       )}
 
-      <MessageInput onSend={handleSend} sending={sending} />
+      <MessageInput onSend={handleSend} sending={sending} onRecordVideo={onRecordVideo} />
     </div>
   );
 }

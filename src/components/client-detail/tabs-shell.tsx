@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MessagesTab } from "./messages-tab";
 import { VideosTab } from "./videos-tab";
 import { FilesTab } from "./files-tab";
 import { NotesTab } from "./notes-tab";
+import { VideoRecorderModal } from "./video-recorder-modal";
 import type { Message, Video, FileRow } from "@/lib/types";
 
 const TABS = ["Messages", "Videos", "Files", "Notes"] as const;
@@ -32,6 +33,13 @@ export function TabsShell({
   initialNoteUpdatedAt: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("Messages");
+  const [recorderOpen, setRecorderOpen] = useState(false);
+
+  const videosById = useMemo(() => {
+    const map: Record<string, Video> = {};
+    for (const video of videos) map[video.id] = video;
+    return map;
+  }, [videos]);
 
   return (
     <div className="card flex flex-1 flex-col overflow-hidden">
@@ -62,9 +70,18 @@ export function TabsShell({
             currentUserId={currentUserId}
             initialMessages={initialMessages}
             senderMap={senderMap}
+            initialVideosById={videosById}
+            onRecordVideo={() => setRecorderOpen(true)}
           />
         )}
-        {activeTab === "Videos" && <VideosTab videos={videos} senderMap={senderMap} />}
+        {activeTab === "Videos" && (
+          <VideosTab
+            clientId={clientId}
+            videos={videos}
+            senderMap={senderMap}
+            onRecordVideo={() => setRecorderOpen(true)}
+          />
+        )}
         {activeTab === "Files" && <FilesTab files={files} senderMap={senderMap} />}
         {activeTab === "Notes" && (
           <NotesTab
@@ -75,6 +92,15 @@ export function TabsShell({
           />
         )}
       </div>
+
+      {recorderOpen && (
+        <VideoRecorderModal
+          workspaceId={workspaceId}
+          clientId={clientId}
+          onClose={() => setRecorderOpen(false)}
+          onSent={() => setRecorderOpen(false)}
+        />
+      )}
     </div>
   );
 }
