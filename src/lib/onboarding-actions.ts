@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { inviteClientByEmail } from "@/lib/invite-client";
+import { inviteUserByEmail } from "@/lib/invite-client";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,18 +49,21 @@ export async function completeOnboarding(
     return { error: "Could not create workspace. Please try again." };
   }
 
-  // 2. Create the client record and send invite (if provided).
+  // 2. Create the client record and send invite (if provided). Invite first
+  // so we have their real auth user id to link on the way in.
   if (clientName && clientEmail) {
     if (!EMAIL_RE.test(clientEmail)) return { error: "Enter a valid email for your client." };
+
+    const { userId, error: inviteError } = await inviteUserByEmail(clientEmail, workspace.id, "client");
+    if (inviteError) return { error: inviteError };
 
     await supabase.from("clients").insert({
       workspace_id: workspace.id,
       name: clientName,
       email: clientEmail,
+      user_id: userId,
       status: "active",
     });
-
-    await inviteClientByEmail(clientEmail, workspace.id);
   }
 
   // 3. Mark onboarding complete in user metadata.

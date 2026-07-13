@@ -11,8 +11,12 @@ const API_BYPASS_PREFIXES = ["/api/stripe/webhook", "/api/cron/"];
 
 // Accessible whether signed in or not, and never redirected away from
 // either direction — unlike /login etc. below, an already-subscribed
-// founder still needs to reach this page to upgrade.
-const ALWAYS_ACCESSIBLE_PATHS = ["/pricing"];
+// founder still needs to reach this page to upgrade. /accept-invite is
+// here for a different reason: an invite link's session lives in the URL
+// hash, which the server never sees, so on first load the server-side
+// check below sees no session yet even though the browser is about to
+// establish one — this path can't require server-verified auth up front.
+const ALWAYS_ACCESSIBLE_PATHS = ["/pricing", "/accept-invite"];
 
 // Accessible only while signed out; an authenticated visitor is bounced to
 // /dashboard instead.

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { inviteClientByEmail } from "@/lib/invite-client";
+import { inviteUserByEmail } from "@/lib/invite-client";
 import { getWorkspaceSubscription, effectivePlan } from "@/lib/get-workspace-subscription";
 import { PLANS, nextPlan as getNextPlan, type PlanConfig } from "@/lib/plans";
 
@@ -49,10 +49,17 @@ export async function addClient(
     }
   }
 
+  // Invite first so we have their real auth user id to link on the way in —
+  // otherwise clients.user_id stays null forever and they can never
+  // actually reach their own space once they accept.
+  const { userId, error: inviteError } = await inviteUserByEmail(email, workspaceId, "client");
+  if (inviteError) return { error: inviteError };
+
   const { error } = await supabase.from("clients").insert({
     workspace_id: workspaceId,
     name,
     email,
+    user_id: userId,
     status: "active",
   });
 
@@ -60,8 +67,6 @@ export async function addClient(
     if (error.code === "23505") return { error: "This client already exists in your workspace." };
     return { error: "Could not add client. Please try again." };
   }
-
-  await inviteClientByEmail(email, workspaceId);
 
   revalidatePath("/dashboard");
   return { success: true };
