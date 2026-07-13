@@ -230,9 +230,13 @@ export function VideoRecorderModal({
       if (!createRes.ok) throw new Error("Could not save the video.");
       const { video } = await createRes.json();
 
-      // Fire-and-forget: transcription runs server-side independently so the
+      // Fire-and-forget: processing runs server-side independently so the
       // modal doesn't block on Deepgram + Claude finishing.
-      fetch(`/api/videos/${video.id}/transcribe`, { method: "POST" }).catch(() => {});
+      fetch("/api/process-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video_id: video.id }),
+      }).catch(() => {});
 
       onSent();
     } catch {

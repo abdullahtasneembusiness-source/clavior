@@ -18,6 +18,8 @@ export type Client = {
   created_at: string;
   ai_relationship_summary: string | null;
   ai_relationship_summary_generated_at: string | null;
+  engagement_status: "healthy" | "at_risk" | "churning";
+  testimonial_candidate: boolean;
 };
 
 export type Message = {
