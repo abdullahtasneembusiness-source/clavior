@@ -82,7 +82,9 @@ export function TabsShell({
             onRecordVideo={() => setRecorderOpen(true)}
           />
         )}
-        {activeTab === "Files" && <FilesTab files={files} senderMap={senderMap} />}
+        {activeTab === "Files" && (
+          <FilesTab workspaceId={workspaceId} clientId={clientId} files={files} senderMap={senderMap} />
+        )}
         {activeTab === "Notes" && (
           <NotesTab
             clientId={clientId}
