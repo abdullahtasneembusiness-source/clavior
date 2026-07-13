@@ -5,24 +5,30 @@ import { StatCard } from "./stat-card";
 import { ClientCard } from "./client-card";
 import { EmptyState } from "./empty-state";
 import { AddClientPanel } from "./add-client-panel";
+import { TrialBanner } from "./trial-banner";
 import { PlusIcon } from "./icons";
 import type { Client } from "@/lib/types";
+import type { PlanConfig } from "@/lib/plans";
 
 export function DashboardContent({
   workspaceId,
   clients,
   lastMessageByClientId,
   stats,
+  trial,
 }: {
   workspaceId: string;
   clients: Client[];
   lastMessageByClientId: Record<string, string>;
   stats: { totalClients: number; activeThisWeek: number; messagesThisWeek: number };
+  trial: { daysRemaining: number; plan: PlanConfig } | null;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
 
   return (
     <main className="flex flex-1 flex-col px-8 py-8">
+      {trial && <TrialBanner daysRemaining={trial.daysRemaining} plan={trial.plan} />}
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-white">Dashboard</h1>
         <button

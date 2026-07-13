@@ -50,6 +50,12 @@ export function timeAgo(isoDate: string | null): string {
   return `${months} month${months === 1 ? "" : "s"} ago`;
 }
 
+// Whole days between now and a future ISO date, rounded up (1 day remaining
+// shows "1" until it actually passes, not "0"). Negative once isoDate is past.
+export function daysUntil(isoDate: string): number {
+  return Math.ceil((new Date(isoDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
 export type EngagementLevel = "active" | "cooling" | "at-risk";
 
 export function engagementLevel(lastActiveAt: string | null): EngagementLevel {

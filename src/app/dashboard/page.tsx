@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceForUser } from "@/lib/get-workspace-for-user";
+import { getWorkspaceSubscription } from "@/lib/get-workspace-subscription";
+import { daysUntil } from "@/lib/dashboard-utils";
+import { PLANS } from "@/lib/plans";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import type { Client } from "@/lib/types";
 
@@ -16,6 +19,13 @@ export default async function DashboardPage() {
 
   const workspace = await getWorkspaceForUser(supabase, user.id);
   if (!workspace) redirect("/onboarding");
+
+  const subscription = await getWorkspaceSubscription(supabase, workspace.id);
+  let trialInfo: { daysRemaining: number; planName: keyof typeof PLANS } | null = null;
+  if (subscription?.status === "trialing" && subscription.trialEndsAt) {
+    const daysRemaining = daysUntil(subscription.trialEndsAt);
+    if (daysRemaining > 0) trialInfo = { daysRemaining, planName: subscription.plan };
+  }
 
   const [{ data: clients }, { data: recentMessages }, { count: messagesThisWeekCount }] = await Promise.all([
     supabase
@@ -60,6 +70,7 @@ export default async function DashboardPage() {
         activeThisWeek,
         messagesThisWeek: messagesThisWeekCount ?? 0,
       }}
+      trial={trialInfo ? { daysRemaining: trialInfo.daysRemaining, plan: PLANS[trialInfo.planName] } : null}
     />
   );
 }

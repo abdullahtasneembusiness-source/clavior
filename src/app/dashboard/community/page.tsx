@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceForUser } from "@/lib/get-workspace-for-user";
+import { getWorkspaceSubscription, effectivePlan } from "@/lib/get-workspace-subscription";
+import { PLANS, nextPlan as getNextPlan } from "@/lib/plans";
 import { CommunityContent } from "@/components/community/community-content";
+import { CommunityPlanGate } from "@/components/community/community-plan-gate";
 import type { Client, Message } from "@/lib/types";
 
 export type StaffRole = "owner" | "admin" | "member";
@@ -17,6 +20,17 @@ export default async function CommunityPage() {
 
   const workspace = await getWorkspaceForUser(supabase, user.id);
   if (!workspace) redirect("/onboarding");
+
+  const subscription = await getWorkspaceSubscription(supabase, workspace.id);
+  const plan = effectivePlan(subscription);
+  const planConfig = PLANS[plan];
+
+  if (!planConfig.communityChat) {
+    const next = getNextPlan(plan);
+    if (next) {
+      return <CommunityPlanGate currentPlanName={planConfig.name} nextPlan={next} />;
+    }
+  }
 
   const [{ data: members }, { data: activeClients }, { data: messages }] = await Promise.all([
     supabase

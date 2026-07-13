@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { addClient } from "@/lib/client-actions";
 import { CloseIcon } from "./icons";
+import { UpgradeModal } from "./upgrade-modal";
 
 export function AddClientPanel({
   workspaceId,
@@ -16,6 +17,19 @@ export function AddClientPanel({
   const [state, formAction, isPending] = useActionState(addClient, null);
   const formRef = useRef<HTMLFormElement>(null);
   const wasPending = useRef(false);
+
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [prevState, setPrevState] = useState(state);
+
+  // Open the upgrade modal the moment a new limitReached result arrives.
+  // Derived during render (React's documented pattern for this) rather
+  // than via setState-in-an-effect, which only belongs to synchronizing
+  // with something outside React — this is plain React state responding
+  // to other React state.
+  if (state !== prevState) {
+    setPrevState(state);
+    if (state && "limitReached" in state) setUpgradeModalOpen(true);
+  }
 
   useEffect(() => {
     if (wasPending.current && !isPending && state && "success" in state) {
@@ -111,6 +125,15 @@ export function AddClientPanel({
           </div>
         </form>
       </div>
+
+      {state && "limitReached" in state && (
+        <UpgradeModal
+          open={upgradeModalOpen}
+          onClose={() => setUpgradeModalOpen(false)}
+          reason={`You've reached the ${state.clientLimit}-client limit on the ${state.planName} plan.`}
+          nextPlan={state.nextPlan}
+        />
+      )}
     </>
   );
 }
