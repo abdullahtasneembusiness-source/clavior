@@ -203,3 +203,15 @@ export function UploadIcon({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+export function PinIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={className}>
+      <g transform="rotate(45 8 8)">
+        <path d="M8 2.5v3.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        <rect x="5.5" y="5.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+        <path d="M8 10.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}

@@ -27,6 +27,7 @@ export type Message = {
   sender_id: string;
   content: string;
   video_id: string | null;
+  pinned_at: string | null;
   created_at: string;
 };
 

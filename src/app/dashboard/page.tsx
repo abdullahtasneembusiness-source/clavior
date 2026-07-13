@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceForUser } from "@/lib/get-workspace-for-user";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
-import type { Client, Workspace } from "@/lib/types";
+import type { Client } from "@/lib/types";
 
 const SEVEN_DAYS_AGO = () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -13,30 +14,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  // A founder owns their workspace; a team member belongs to one via
-  // workspace_members. Try owner first since that's the primary dashboard flow.
-  let workspace: Pick<Workspace, "id" | "name"> | null = null;
-
-  const { data: ownedWorkspace } = await supabase
-    .from("workspaces")
-    .select("id, name")
-    .eq("owner_id", user.id)
-    .limit(1)
-    .maybeSingle();
-
-  if (ownedWorkspace) {
-    workspace = ownedWorkspace;
-  } else {
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspaces (id, name)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle<{ workspaces: Pick<Workspace, "id" | "name"> }>();
-
-    workspace = membership?.workspaces ?? null;
-  }
-
+  const workspace = await getWorkspaceForUser(supabase, user.id);
   if (!workspace) redirect("/onboarding");
 
   const [{ data: clients }, { data: recentMessages }, { count: messagesThisWeekCount }] = await Promise.all([
