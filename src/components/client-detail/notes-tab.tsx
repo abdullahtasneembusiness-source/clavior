@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BoldIcon, ItalicIcon, ListIcon } from "@/components/dashboard/icons";
 import { saveClientNotes } from "@/lib/notes-actions";
 import { timeAgo } from "@/lib/dashboard-utils";
+import { sanitizeNotesHtml } from "@/lib/sanitize-notes-html";
 
 const AUTOSAVE_INTERVAL_MS = 30_000;
 
@@ -25,12 +26,15 @@ export function NotesTab({
   const [, forceTick] = useState(0);
 
   useEffect(() => {
-    if (editorRef.current) editorRef.current.innerHTML = initialContent;
+    // Sanitized on the way in too, not just on save — protects against any
+    // row written before this fix existed, or by a direct API call that
+    // bypassed the save-side sanitization below entirely.
+    if (editorRef.current) editorRef.current.innerHTML = sanitizeNotesHtml(initialContent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function saveIfChanged() {
-    const current = editorRef.current?.innerHTML ?? "";
+    const current = sanitizeNotesHtml(editorRef.current?.innerHTML ?? "");
     if (current === lastSavedContentRef.current) return;
 
     setSaving(true);

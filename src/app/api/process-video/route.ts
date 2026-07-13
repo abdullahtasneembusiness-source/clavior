@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM_PROMPT =
@@ -15,9 +16,29 @@ export async function POST(request: Request) {
   const { video_id: videoId } = await request.json();
   if (!videoId) return NextResponse.json({ error: "video_id is required." }, { status: 400 });
 
-  // This is a backend job, not a user-session action — RLS deliberately has
-  // no update policy for transcript/ai_summary/transcription_status (see
-  // migration 0001's comment), so this must use the service-role client.
+  // Found in security audit: this route previously had no auth check at
+  // all and went straight to the admin client — anyone who obtained any
+  // video's UUID could trigger (and make us pay Deepgram/Claude for)
+  // reprocessing on a video from a workspace they have no relationship to.
+  // Require a session, and confirm they can actually see this video under
+  // their own RLS-scoped read before touching anything with elevated
+  // privileges — reuses the videos SELECT policy (owner/admin/assigned
+  // member/client-self) as the single source of truth for "does this
+  // person have any business triggering this video's processing."
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  const { data: authorizedVideo } = await supabase.from("videos").select("id").eq("id", videoId).maybeSingle();
+  if (!authorizedVideo) return NextResponse.json({ error: "Video not found." }, { status: 404 });
+
+  // From here on this is a backend job, not a user-session action — RLS
+  // deliberately has no update policy for transcript/ai_summary/
+  // transcription_status (see migration 0001's comment), so writing the
+  // result requires the service-role client. Authorization was already
+  // established above via the session-scoped read.
   const admin = createAdminClient();
 
   const { data: video } = await admin

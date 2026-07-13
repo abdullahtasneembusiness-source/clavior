@@ -34,12 +34,14 @@ export default function SignupPage() {
             name="password"
             type="password"
             autoComplete="new-password"
+            minLength={8}
           />
           <FormField
             label="Confirm password"
             name="confirmPassword"
             type="password"
             autoComplete="new-password"
+            minLength={8}
           />
 
           {state?.error && (

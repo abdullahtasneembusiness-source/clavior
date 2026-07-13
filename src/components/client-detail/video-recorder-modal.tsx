@@ -8,6 +8,15 @@ import { pickSupportedMimeType, formatTimer, stopAllTracks } from "@/lib/media-r
 type Mode = "camera" | "screen" | "both";
 type Phase = "setup" | "recording" | "reviewing" | "uploading";
 
+// Neither the client nor the server enforced any limit on recording length
+// (found in security audit) — someone could record for hours, producing a
+// huge upload with no size check anywhere in the pipeline. Capping duration
+// client-side bounds file size indirectly, without changing the working
+// presigned-PUT upload mechanism. A real max-file-size enforcement at the
+// storage layer (e.g. content-length-range via presigned POST) is a
+// follow-up, not done here.
+const MAX_RECORDING_SECONDS = 10 * 60;
+
 const MODES: { value: Mode; label: string }[] = [
   { value: "camera", label: "Camera only" },
   { value: "screen", label: "Screen only" },
@@ -171,7 +180,13 @@ export function VideoRecorderModal({
     mediaRecorderRef.current = recorder;
     recorder.start();
     setElapsedSeconds(0);
-    timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds((s) => {
+        const next = s + 1;
+        if (next >= MAX_RECORDING_SECONDS) stopRecording();
+        return next;
+      });
+    }, 1000);
     setPhase("recording");
   }
 
@@ -332,7 +347,9 @@ export function VideoRecorderModal({
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ background: "#EF4444", animation: "pulse 1.4s ease-in-out infinite" }}
                 />
-                <span className="text-sm font-medium tabular-nums text-white">{formatTimer(elapsedSeconds)}</span>
+                <span className="text-sm font-medium tabular-nums text-white">
+                  {formatTimer(elapsedSeconds)} / {formatTimer(MAX_RECORDING_SECONDS)}
+                </span>
               </div>
             )}
           </div>
