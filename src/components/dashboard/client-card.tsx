@@ -11,9 +11,11 @@ import type { Client } from "@/lib/types";
 export function ClientCard({
   client,
   lastMessagePreview,
+  aiEnabled,
 }: {
   client: Client;
   lastMessagePreview: string | null;
+  aiEnabled: boolean;
 }) {
   const level = engagementLevel(client.last_active_at);
 
@@ -43,6 +45,12 @@ export function ClientCard({
       </p>
 
       <p className="mt-3 text-xs text-muted-foreground">{timeAgo(client.last_active_at)}</p>
+
+      {aiEnabled && client.ai_relationship_summary && (
+        <p className="mt-2 truncate text-xs italic text-accent" title={client.ai_relationship_summary}>
+          {client.ai_relationship_summary}
+        </p>
+      )}
     </Link>
   );
 }

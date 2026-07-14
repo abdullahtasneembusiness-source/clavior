@@ -16,12 +16,14 @@ export function DashboardContent({
   lastMessageByClientId,
   stats,
   trial,
+  aiEnabled,
 }: {
   workspaceId: string;
   clients: Client[];
   lastMessageByClientId: Record<string, string>;
   stats: { totalClients: number; activeThisWeek: number; messagesThisWeek: number };
   trial: { daysRemaining: number; plan: PlanConfig } | null;
+  aiEnabled: boolean;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -56,6 +58,7 @@ export function DashboardContent({
                 key={client.id}
                 client={client}
                 lastMessagePreview={lastMessageByClientId[client.id] ?? null}
+                aiEnabled={aiEnabled}
               />
             ))}
           </div>

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily-maintenance",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/generate-client-summaries",
+      "schedule": "0 2 * * *"
     }
   ]
 }

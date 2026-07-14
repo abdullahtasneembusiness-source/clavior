@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceForUser } from "@/lib/get-workspace-for-user";
-import { getWorkspaceSubscription } from "@/lib/get-workspace-subscription";
+import { getWorkspaceSubscription, effectivePlan } from "@/lib/get-workspace-subscription";
 import { daysUntil } from "@/lib/dashboard-utils";
 import { PLANS } from "@/lib/plans";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
@@ -21,6 +21,7 @@ export default async function DashboardPage() {
   if (!workspace) redirect("/onboarding");
 
   const subscription = await getWorkspaceSubscription(supabase, workspace.id);
+  const aiEnabled = PLANS[effectivePlan(subscription)].aiIntelligence;
   let trialInfo: { daysRemaining: number; planName: keyof typeof PLANS } | null = null;
   if (subscription?.status === "trialing" && subscription.trialEndsAt) {
     const daysRemaining = daysUntil(subscription.trialEndsAt);
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
         messagesThisWeek: messagesThisWeekCount ?? 0,
       }}
       trial={trialInfo ? { daysRemaining: trialInfo.daysRemaining, plan: PLANS[trialInfo.planName] } : null}
+      aiEnabled={aiEnabled}
     />
   );
 }

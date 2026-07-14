@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { avatarColorFor, initialsFor, timeAgo, formatDate, engagementScore } from "@/lib/dashboard-utils";
 import type { Client } from "@/lib/types";
 
-export function ClientInfoPanel({ client }: { client: Client }) {
+export function ClientInfoPanel({ client, aiEnabled }: { client: Client; aiEnabled: boolean }) {
   const score = engagementScore(client.last_active_at);
 
   return (
@@ -62,7 +63,17 @@ export function ClientInfoPanel({ client }: { client: Client }) {
 
       <div className="border-t border-border pt-4">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI summary</p>
-        {client.ai_relationship_summary ? (
+        {!aiEnabled ? (
+          <>
+            <p className="mt-2 text-sm italic text-muted-foreground">
+              AI relationship summaries are a Studio plan feature — automatic, one-line insight into how each client
+              relationship is going.
+            </p>
+            <Link href="/pricing" className="mt-2 inline-block text-sm font-medium text-accent hover:underline">
+              Upgrade to Studio
+            </Link>
+          </>
+        ) : client.ai_relationship_summary ? (
           <>
             <p className="mt-2 text-sm italic text-muted-foreground">{client.ai_relationship_summary}</p>
             {client.ai_relationship_summary_generated_at && (

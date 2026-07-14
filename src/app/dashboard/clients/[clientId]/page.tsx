@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceSubscription, effectivePlan } from "@/lib/get-workspace-subscription";
+import { PLANS } from "@/lib/plans";
 import { ClientInfoPanel } from "@/components/client-detail/client-info-panel";
 import { TabsShell } from "@/components/client-detail/tabs-shell";
 import type { Client, Message, Video, FileRow } from "@/lib/types";
@@ -24,6 +26,9 @@ export default async function ClientDetailPage({
     .maybeSingle<Client>();
 
   if (!client) notFound();
+
+  const subscription = await getWorkspaceSubscription(supabase, client.workspace_id);
+  const aiEnabled = PLANS[effectivePlan(subscription)].aiIntelligence;
 
   const { data: workspace } = await supabase
     .from("workspaces")
@@ -93,7 +98,7 @@ export default async function ClientDetailPage({
       </div>
 
       <div className="h-full w-[40%] overflow-y-auto">
-        <ClientInfoPanel client={client} />
+        <ClientInfoPanel client={client} aiEnabled={aiEnabled} />
       </div>
     </main>
   );
