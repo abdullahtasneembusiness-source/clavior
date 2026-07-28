@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20303f"/>
+      <stop offset="55%" stop-color="#33485c"/>
+      <stop offset="100%" stop-color="#556f82"/>
+    </linearGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3d5468"/>
+      <stop offset="100%" stop-color="#2e4152"/>
+    </linearGradient>
+    <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#243645"/>
+      <stop offset="100%" stop-color="#182833"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#111c25"/>
+      <stop offset="100%" stop-color="#080f15"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <!-- far ridge -->
+  <path d="M0 560 L260 470 L520 520 L780 430 L1080 500 L1400 420 L1700 490 L1920 440 L1920 1080 L0 1080 Z" fill="url(#far)"/>
+  <!-- mid ridge -->
+  <path d="M0 700 L300 600 L560 660 L860 560 L1180 640 L1500 560 L1920 630 L1920 1080 L0 1080 Z" fill="url(#mid)"/>
+  <!-- near ridge -->
+  <path d="M0 880 L360 790 L720 860 L1080 760 L1460 850 L1920 780 L1920 1080 L0 1080 Z" fill="url(#near)"/>
+  <!-- snow flecks on near ridge -->
+  <path d="M0 880 L360 790 L720 860 L1080 760 L1460 850 L1920 780" fill="none" stroke="#c9d7e0" stroke-width="4" opacity="0.5"/>
+</svg>
