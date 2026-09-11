@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 import potrace
+from scipy import ndimage
 from PIL import Image
 from reportlab.lib.colors import Color, black, white
 from reportlab.lib.units import inch
@@ -142,6 +143,58 @@ def draw_svg(c: canvas.Canvas, path: Path, box, fill=None) -> None:
     out = Drawing(iw * scale, ih * scale)
     out.add(group)
     renderPDF.draw(out, c, bx + (bw - iw * scale) / 2, by + (bh - ih * scale) / 2)
+
+
+@lru_cache(maxsize=32)
+def silhouette(png: Path):
+    """
+    Trace the drawing's filled body: its ink plus everything enclosed by it.
+
+    Tracing the ink alone gives the strokes, so filling that with colour tints
+    the lines rather than what they surround. The body is found by flooding
+    white inward from the border — anything the flood cannot reach is inside
+    the drawing.
+    """
+    a = np.asarray(Image.open(png).convert("L"))
+    ink = a < 128
+
+    labels, _ = ndimage.label(~ink)
+    edge = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    outside = np.isin(labels, edge[edge != 0])
+    body = ~outside
+
+    ys, xs = np.nonzero(body)
+    bbox = (
+        (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+        if xs.size
+        else (0, 0, a.shape[1], a.shape[0])
+    )
+    return potrace.Bitmap(np.where(body, 0, 255).astype("uint8")).trace(), bbox
+
+
+def draw_body(c: canvas.Canvas, png: Path, box, fill) -> None:
+    """Fill the drawing's body with one flat colour, for the cover."""
+    if png.suffix.lower() == ".svg":
+        return
+    path, (ix0, iy0, ix1, iy1) = silhouette(png)
+    iw, ih = ix1 - ix0, iy1 - iy0
+    bx, by, bw, bh = box
+    scale = min(bw / iw, bh / ih)
+    ox = bx + (bw - iw * scale) / 2 - ix0 * scale
+    oy = by + (bh - ih * scale) / 2 + ih * scale + iy0 * scale
+
+    c.saveState()
+    c.setFillColor(fill)
+    p = c.beginPath()
+    for curve in path:
+        pts = [(ox + q.x * scale, oy - q.y * scale) for q in
+               [curve.start_point] + [seg.end_point for seg in curve]]
+        p.moveTo(*pts[0])
+        for pt_ in pts[1:]:
+            p.lineTo(*pt_)
+        p.close()
+    c.drawPath(p, stroke=0, fill=1, fillMode=FILL_EVEN_ODD)
+    c.restoreState()
 
 
 def draw_art(
