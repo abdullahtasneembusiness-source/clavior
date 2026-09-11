@@ -327,12 +327,15 @@ def cut_snip(c, level, box, spec):
     n = spec.get("count", 8)
     length = 1.5 * inch
     gap = w / n
+    # The scissor marks hang below each snip, so the snips start high enough
+    # to keep them clear of the footer line.
+    base = y0 + 20
     for i in range(n):
         x = x0 + gap * (i + 0.5)
         c.saveState(); _dashed(c, level)
-        c.line(x, y0, x, y0 + length)
+        c.line(x, base, x, base + length)
         c.restoreState()
-        draw_scissors(c, x - 4.5, y0 - 15)
+        draw_scissors(c, x - 4.5, base - 15)
 
 
 def cut_straight(c, level, box, spec):
