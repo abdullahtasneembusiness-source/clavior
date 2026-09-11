@@ -19,6 +19,7 @@ Usage:
 import argparse
 import json
 import math
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,7 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+from reportlab.pdfgen.canvas import FILL_EVEN_ODD
 
 HERE = Path(__file__).resolve().parent
 BOOK = HERE.parent / "book1"
@@ -42,7 +44,10 @@ PAGE_W, PAGE_H = 8.5 * inch, 11 * inch
 M_SPINE, M_OUTER, M_TOP, M_BOTTOM = 0.75 * inch, 0.5 * inch, 0.5 * inch, 0.5 * inch
 TEAR_X = 0.75 * inch
 
-CONTENT_L = M_SPINE
+# The plan puts the inside margin and the tear-out line at the same 0.75in,
+# which leaves artwork sitting on top of the dashes. Content starts clear of
+# the line instead.
+CONTENT_L = TEAR_X + 0.18 * inch
 CONTENT_R = PAGE_W - M_OUTER
 CONTENT_W = CONTENT_R - CONTENT_L
 
@@ -59,25 +64,44 @@ def register_fonts() -> None:
 # --- Illustration ----------------------------------------------------------
 
 
-def trace(png: Path) -> tuple[potrace.Path, int, int]:
-    """Trace a cleaned black-on-white bitmap into curves."""
+@lru_cache(maxsize=64)
+def trace(png: Path) -> tuple[potrace.Path, tuple[int, int, int, int]]:
+    """
+    Trace a cleaned black-on-white bitmap into curves, with the bounding box
+    of the ink.
+
+    Flux centres its subject inside a generous margin of its own, so fitting
+    the whole frame to the page leaves the drawing floating small in the
+    middle of it. The bounding box is what actually gets fitted.
+    """
     a = np.asarray(Image.open(png).convert("L"))
-    bitmap = potrace.Bitmap(a < 128)
-    h, w = a.shape
-    return bitmap.trace(), w, h
+    # Bitmap thresholds at blacklevel and then inverts, so handing it the
+    # grayscale directly is what makes the *black* pixels the traced shape.
+    # Passing a "True means ink" mask traces the white background instead.
+    bitmap = potrace.Bitmap(a)
+
+    ys, xs = np.nonzero(a < 128)
+    bbox = (
+        (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+        if xs.size
+        else (0, 0, a.shape[1], a.shape[0])
+    )
+    return bitmap.trace(), bbox
 
 
 def draw_art(c: canvas.Canvas, png: Path, box: tuple[float, float, float, float]) -> None:
     """Draw the traced illustration to fit inside (x, y, w, h), centred."""
-    path, iw, ih = trace(png)
+    path, (ix0, iy0, ix1, iy1) = trace(png)
+    iw, ih = ix1 - ix0, iy1 - iy0
     bx, by, bw, bh = box
     scale = min(bw / iw, bh / ih)
     # Bitmap y runs downward and PDF y runs upward, so flip while placing.
-    ox = bx + (bw - iw * scale) / 2
-    oy = by + (bh - ih * scale) / 2 + ih * scale
+    # The extra ix0/iy0 terms shift the ink's corner onto the box's corner.
+    ox = bx + (bw - iw * scale) / 2 - ix0 * scale
+    oy = by + (bh - ih * scale) / 2 + ih * scale + iy0 * scale
 
     def pt(p):
-        return ox + p[0] * scale, oy - p[1] * scale
+        return ox + p.x * scale, oy - p.y * scale
 
     c.saveState()
     c.setFillColor(black)
@@ -91,8 +115,9 @@ def draw_art(c: canvas.Canvas, png: Path, box: tuple[float, float, float, float]
             else:
                 p.curveTo(*pt(seg.c1), *pt(seg.c2), *pt(seg.end_point))
         p.close()
-    # Even-odd, so the holes potrace nests inside a shape stay open.
-    c.drawPath(p, stroke=0, fill=1, fillMode=0)
+    # Even-odd, so the holes potrace nests inside a shape stay open
+    # regardless of which way round each contour was wound.
+    c.drawPath(p, stroke=0, fill=1, fillMode=FILL_EVEN_ODD)
     c.restoreState()
 
 
@@ -316,6 +341,11 @@ def cut_path(c, level, box, spec):
 
 SHAPES = ("square", "rectangle", "triangle", "circle", "halfcircle", "diamond", "mixed")
 
+# How much of each cutting shape the drawing inside it may fill. A triangle
+# or a diamond encloses far less than its bounding square does.
+SHAPE_FIT = {"square": 0.86, "rectangle": 0.84, "circle": 0.70,
+             "triangle": 0.70, "diamond": 0.60, "halfcircle": 0.64}
+
 
 def cut_shape(c, level, box, spec, art: Path | None = None):
     """Level 4: a dashed outline around each object, two by two."""
@@ -332,11 +362,15 @@ def cut_shape(c, level, box, spec, art: Path | None = None):
     for i in range(n):
         cx = x0 + cw * (i % cols) + cw / 2
         cy = y0 + h - ch * (i // cols) - ch / 2
+        kind = order[i]
         if art is not None:
-            draw_art(c, art, (cx - size / 2, cy - size / 2, size, size))
+            inner = size * SHAPE_FIT.get(kind, 0.8)
+            # A triangle's usable room sits low, a half circle's lower still.
+            drop = {"triangle": -0.09, "halfcircle": -0.14}.get(kind, 0.0) * size
+            draw_art(c, art, (cx - inner / 2, cy - inner / 2 + drop, inner, inner))
 
         c.saveState(); _dashed(c, level)
-        s, kind = size * 0.98, order[i]
+        s = size * 0.98
         if kind == "circle":
             c.circle(cx, cy, s / 2, stroke=1, fill=0)
         elif kind == "halfcircle":
