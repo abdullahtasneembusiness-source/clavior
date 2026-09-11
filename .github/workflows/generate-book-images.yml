@@ -1,0 +1,128 @@
+name: Generate book images
+
+# The agent sandbox cannot reach api.replicate.com (the egress proxy denies the
+# CONNECT), so image generation runs here, where the runner has open internet.
+# Generated PNGs are committed straight back to the branch rather than uploaded
+# as artifacts, because the sandbox cannot download artifacts either.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upscale:
+        description: 'Upscale the cover illustration to 300 DPI instead of generating. Tries the cheapest upscaler that answers.'
+        type: boolean
+        required: false
+        default: false
+      recover:
+        description: 'Re-download images already generated and paid for but lost by a failed run. Generates nothing, charges nothing.'
+        type: boolean
+        required: false
+        default: false
+      spec:
+        description: 'Which spec to build: images.json for the interior, cover-art.json for the cover'
+        required: false
+        default: 'images.json'
+      only:
+        # Blank means everything missing. A non-blank default would come back
+        # whenever the field is cleared, which is how a run once asked for an
+        # image key that no longer existed.
+        description: 'Image keys to build, comma separated. Leave blank to build every image not yet generated.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Print the prompts and the price, call nothing, charge nothing'
+        type: boolean
+        required: false
+        default: false
+      force:
+        description: 'Rebuild images that already exist in book/book1/art'
+        type: boolean
+        required: false
+        default: false
+      seed:
+        description: 'Override the book seed (42). Use for redoing a rejected image.'
+        required: false
+        default: ''
+      ceiling_usd:
+        description: 'Hard stop for this run, in dollars'
+        required: false
+        default: '5'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the API key is present
+        if: ${{ inputs.dry_run == false }}
+        env:
+          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+        run: |
+          if [ -z "$REPLICATE_API_KEY" ]; then
+            echo "::error::REPLICATE_API_KEY is not set as a repository secret. Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "Key present."
+
+      - name: Recover images a failed run lost
+        if: ${{ inputs.recover }}
+        env:
+          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+        run: node book/scripts/recover-images.mjs
+
+      - name: Upscale the cover
+        if: ${{ inputs.upscale }}
+        env:
+          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+        run: node book/scripts/upscale.mjs
+
+      - name: Generate
+        if: ${{ !inputs.recover && !inputs.upscale }}
+        env:
+          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+          SPEC: ${{ inputs.spec }}
+          ONLY: ${{ inputs.only }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          FORCE: ${{ inputs.force && '1' || '0' }}
+          SEED: ${{ inputs.seed }}
+          CEILING_USD: ${{ inputs.ceiling_usd }}
+        run: node book/scripts/generate-images.mjs
+
+      # always(), because a run that fails partway has still generated — and
+      # been charged for — everything before the failure. Letting the job end
+      # without this step throws that away and the images have to be bought
+      # a second time.
+      - name: Commit the images and the cost ledger
+        if: ${{ always() && inputs.dry_run == false }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add book/book1/art costs.jsonl
+          if git diff --staged --quiet; then
+            echo "No new images — everything requested was already in the repo."
+            exit 0
+          fi
+          git commit -m "Generate book 1 images: ${{ inputs.only || 'all missing' }}"
+          # A push straight from here is rejected if the branch moved while
+          # this job ran, and the images are then lost with the runner. Rebase
+          # onto whatever landed and retry before giving up on them.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:${{ github.ref_name }}; then
+              exit 0
+            fi
+            echo "push rejected, rebasing onto the branch (attempt $attempt)"
+            git fetch origin ${{ github.ref_name }}
+            git rebase origin/${{ github.ref_name }} || { git rebase --abort; true; }
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push the generated images after three attempts."
+          exit 1

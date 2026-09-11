@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!--
+    Depth map for demo-ridge.svg.
+    Convention used by DepthDisplacementPanel: WHITE = near, BLACK = far.
+    The bands mirror the ridge layers in the colour still so parallax lines up:
+    sky darkest (far), each nearer ridge brighter.
+  -->
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="100%" stop-color="#2a2a2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#base)"/>
+  <path d="M0 560 L260 470 L520 520 L780 430 L1080 500 L1400 420 L1700 490 L1920 440 L1920 1080 L0 1080 Z" fill="#4d4d4d"/>
+  <path d="M0 700 L300 600 L560 660 L860 560 L1180 640 L1500 560 L1920 630 L1920 1080 L0 1080 Z" fill="#8f8f8f"/>
+  <path d="M0 880 L360 790 L720 860 L1080 760 L1460 850 L1920 780 L1920 1080 L0 1080 Z" fill="#ffffff"/>
+</svg>

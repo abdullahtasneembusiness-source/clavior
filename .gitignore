@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated book art cleanup output, rebuilt from art/ by clean-art.py
+book/book1/art-clean/
+
+# book build output, rebuilt by build_pages.py / build_book.py / build_cover.py
+book/out/
