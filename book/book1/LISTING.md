@@ -6,7 +6,7 @@ Everything to paste into KDP at upload, kept next to the book it describes.
 
 - **Series:** Cut, Color & Build *(enter as the series so later books link together)*
 - **Title:** Cut, Color & Build: Construction Site
-- **Subtitle:** Scissor Skills Activity Book for Kids Ages 3–5 with Trucks, Diggers and Cranes — 35 Cutting Practice Pages, Screen-Free Preschool Fun
+- **Subtitle:** Scissor Skills Activity Book for Kids Ages 3–5 with Dump Trucks, Diggers and Cement Mixers — 35 Cutting Practice Pages, Screen-Free Preschool Fun
 - **Author / brand:** *not chosen yet* — search it on Amazon first to be sure nobody else uses it, then set `BRAND` in `scripts/build_book.py`
 - **Reading age:** 3–5
 - **Trim:** 8.5 × 11 in, no bleed
@@ -27,7 +27,7 @@ Everything to paste into KDP at upload, kept next to the book it describes.
 > What's inside:
 >
 > - 35 cutting activities across 5 levels, from first snips to real builds
-> - Big, bold trucks, diggers and cranes to color before cutting
+> - Big, bold trucks, diggers and road machines to color before cutting
 > - Single-sided pages, so cutting one page never ruins the next
 > - An easy tear-out line on every page
 > - A Scissor Master certificate to celebrate at the end

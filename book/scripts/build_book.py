@@ -31,8 +31,11 @@ from reportlab.pdfgen import canvas
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pieces import PIECES  # noqa: E402
 from build_pages import (  # noqa: E402
     ART_CLEAN,
+    art_path,
+    place,
     CONTENT_L,
     CONTENT_R,
     CONTENT_W,
@@ -57,8 +60,13 @@ YEAR = 2026
 
 
 def _art(key: str) -> Path | None:
-    p = ART_CLEAN / f"{key}.png"
-    return p if p.exists() else None
+    """Front matter borrows interior illustrations, which are raster only."""
+    return art_path(key)
+
+
+def _have(key: str) -> bool:
+    """Code-drawn pieces are always available; generated art may not be."""
+    return key in PIECES or art_path(key) is not None
 
 
 def page_title(c, data):
@@ -215,9 +223,10 @@ def build_book(out: Path) -> int:
     missing = []
     for a in data["activities"]:
         keys = [a["image"]] if a.get("image") else []
+        keys += [b["img"] for b in a.get("build", [])]
         keys += [p["img"] for p in a.get("scene", [])]
         keys += [s["img"] for s in a.get("cut", {}).get("slots", [])]
-        missing += [k for k in keys if _art(k) is None]
+        missing += [k for k in keys if not _have(k)]
     if missing:
         print(f"warning: {len(set(missing))} illustration(s) not generated yet: "
               f"{', '.join(sorted(set(missing)))}")
