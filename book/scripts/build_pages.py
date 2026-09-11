@@ -538,6 +538,12 @@ def draw_activity(c: canvas.Canvas, activity: dict, levels: dict) -> None:
             cut_box = (CONTENT_L, work_bottom, CONTENT_W, work_h)
         CUTTERS.get(spec["type"], cut_straight)(c, level, cut_box, spec)
 
+
+def build(activity: dict, levels: dict, out: Path) -> None:
+    """Write one activity to its own single-page PDF, for proofing."""
+    c = canvas.Canvas(str(out), pagesize=(PAGE_W, PAGE_H))
+    c.setTitle(activity["title"])
+    draw_activity(c, activity, levels)
     c.showPage()
     c.save()
 
