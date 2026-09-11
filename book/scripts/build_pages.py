@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import potrace
 from PIL import Image
-from reportlab.lib.colors import black, white
+from reportlab.lib.colors import Color, black, white
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -89,7 +89,12 @@ def trace(png: Path) -> tuple[potrace.Path, tuple[int, int, int, int]]:
     return bitmap.trace(), bbox
 
 
-def draw_art(c: canvas.Canvas, png: Path, box: tuple[float, float, float, float]) -> None:
+def draw_art(
+    c: canvas.Canvas,
+    png: Path,
+    box: tuple[float, float, float, float],
+    fill=black,
+) -> None:
     """Draw the traced illustration to fit inside (x, y, w, h), centred."""
     path, (ix0, iy0, ix1, iy1) = trace(png)
     iw, ih = ix1 - ix0, iy1 - iy0
@@ -104,7 +109,7 @@ def draw_art(c: canvas.Canvas, png: Path, box: tuple[float, float, float, float]
         return ox + p.x * scale, oy - p.y * scale
 
     c.saveState()
-    c.setFillColor(black)
+    c.setFillColor(fill)
     p = c.beginPath()
     for curve in path:
         p.moveTo(*pt(curve.start_point))
@@ -397,6 +402,69 @@ def cut_shape(c, level, box, spec, art: Path | None = None):
         draw_scissors(c, cx - s / 2 - 14, cy + s / 2 - 6)
 
 
+def cut_pieces(c, level, box, spec, build, art_for):
+    """
+    Level 5, odd page: the pieces laid out to be cut out.
+
+    Each piece gets a dashed outline offset a little outside its drawing, so a
+    child cuts around the shape rather than along the line they coloured.
+    """
+    x0, y0, w, h = box
+    n = len(build)
+    cols = 2 if n <= 4 else 3
+    rows = math.ceil(n / cols)
+    cw, ch = w / cols, h / rows
+    cell = min(cw, ch) * 0.80
+
+    for i, piece in enumerate(build):
+        cx = x0 + cw * (i % cols) + cw / 2
+        cy = y0 + h - ch * (i // cols) - ch / 2
+        png = art_for(piece["img"])
+        if png is not None and png.exists():
+            draw_art(c, png, (cx - cell / 2, cy - cell / 2, cell, cell))
+
+        c.saveState(); _dashed(c, level)
+        c.roundRect(cx - cell * 0.58, cy - cell * 0.58, cell * 1.16, cell * 1.16, 10, stroke=1, fill=0)
+        c.restoreState()
+        draw_scissors(c, cx - cell * 0.58 - 13, cy + cell * 0.58 - 6)
+
+
+def cut_glue(c, level, box, spec, build, art_for):
+    """
+    Level 5, even page: the finished shape as a faint dotted outline, so the
+    cut pieces have somewhere to be glued.
+    """
+    x0, y0, w, h = box
+    side = min(w, h * 0.92)
+    ax, ay = x0 + (w - side) / 2, y0 + (h - side) / 2
+
+    # Light gray, so the child's own coloured piece covers it rather than
+    # showing through around the edges.
+    ghost = Color(0.72, 0.72, 0.72)
+    for piece in build:
+        png = art_for(piece["img"])
+        if png is None or not png.exists():
+            continue
+        pw = side * piece["w"]
+        draw_art(
+            c,
+            png,
+            (ax + side * piece["x"] - pw / 2, ay + side * piece["y"] - pw / 2, pw, pw),
+            fill=ghost,
+        )
+
+    c.saveState()
+    c.setStrokeGray(0.55)
+    c.setLineWidth(1.2)
+    c.setDash(2, 4)
+    c.rect(ax, ay, side, side, stroke=1, fill=0)
+    c.restoreState()
+
+    c.setFont("Fredoka-SemiBold", 11)
+    c.setFillColor(black)
+    c.drawCentredString(x0 + w / 2, y0 + 6, "Glue your pieces on top of the gray shapes.")
+
+
 CUTTERS = {
     "snip": cut_snip,
     "straight": cut_straight,
@@ -427,12 +495,19 @@ def build(activity: dict, levels: dict, out: Path) -> None:
     work_top = below
     work_bottom = M_BOTTOM + 22
     work_h = work_top - work_bottom
+
     spec = activity["cut"]
     art = ART_CLEAN / f"{activity['image']}.png" if activity.get("image") else None
+    art_for = lambda key: ART_CLEAN / f"{key}.png"
+    work_box = (CONTENT_L, work_bottom, CONTENT_W, work_h)
 
-    if spec["type"] == "shape":
+    if spec["type"] == "pieces":
+        cut_pieces(c, level, work_box, spec, activity["build"], art_for)
+    elif spec["type"] == "glue":
+        cut_glue(c, level, work_box, spec, activity["build"], art_for)
+    elif spec["type"] == "shape":
         # Level 4 puts the art inside each cutting shape rather than above it.
-        cut_shape(c, level, (CONTENT_L, work_bottom, CONTENT_W, work_h), spec, art)
+        cut_shape(c, level, work_box, spec, art)
     else:
         art_h = work_h * 0.52
         if art is not None and art.exists():
@@ -465,8 +540,10 @@ def main() -> int:
         if a is None:
             print(f"activity {n}: not in activities.json, skipped")
             continue
-        if a.get("image") and not (ART_CLEAN / f"{a['image']}.png").exists():
-            print(f"activity {n}: {a['image']} not cleaned yet, skipped")
+        needed = [a["image"]] if a.get("image") else [b["img"] for b in a.get("build", [])]
+        missing = [k for k in dict.fromkeys(needed) if not (ART_CLEAN / f"{k}.png").exists()]
+        if missing:
+            print(f"activity {n}: {', '.join(missing)} not generated yet, skipped")
             continue
         out = OUT / f"activity-{n:02d}.pdf"
         build(a, levels, out)
