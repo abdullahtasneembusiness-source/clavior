@@ -7,10 +7,9 @@ level badge, the cutting lines and their scissor icons, the tear-out line, the
 frame and the footer. Flux never draws text, because AI lettering prints as
 broken glyphs.
 
-Illustrations reach the page as vector either way. Flux's raster output is
-cleaned and traced to Bezier curves, because placing a 1408px image across a
-6 inch page is only about 235dpi and prints soft. Recraft returns SVG, which
-is drawn straight through.
+Illustrations reach the page as vector. Flux's raster output is cleaned and
+traced to Bezier curves, because placing a 1408px image across a 6 inch page
+is only about 235dpi and prints soft.
 
 Usage:
     python3 book/scripts/build_pages.py 6 23 29        # these activities
@@ -35,12 +34,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.pdfgen.canvas import FILL_EVEN_ODD
 
-from pieces import PIECES, draw_piece, draw_piece_cutline, piece_box
+from pieces import PIECES, draw_piece, draw_piece_cutline
 
 HERE = Path(__file__).resolve().parent
 BOOK = HERE.parent / "book1"
 ART_CLEAN = BOOK / "art-clean"
-ART_RAW = BOOK / "art"
 
 FONTS = HERE.parent / "assets" / "fonts"
 OUT = HERE.parent / "out"
@@ -816,7 +814,6 @@ def main() -> int:
         needed = [a["image"]] if a.get("image") else []
         needed += [p["img"] for p in a.get("scene", [])]
         needed += [sl["img"] for sl in a.get("cut", {}).get("slots", [])]
-        from pieces import PIECES
         missing = [k for k in dict.fromkeys(needed)
                    if k not in PIECES and art_path(k) is None]
         if missing:

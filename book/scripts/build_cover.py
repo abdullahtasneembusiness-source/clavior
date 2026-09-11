@@ -33,7 +33,7 @@ from reportlab.pdfgen import canvas
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from build_pages import art_path, draw_art, draw_body, register_fonts  # noqa: E402
+from build_pages import draw_art, draw_body, register_fonts  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 BOOK = HERE.parent / "book1"

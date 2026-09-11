@@ -33,9 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pieces import PIECES  # noqa: E402
 from build_pages import (  # noqa: E402
-    ART_CLEAN,
-    art_path,
-    place,
     CONTENT_L,
     CONTENT_R,
     CONTENT_W,
@@ -43,7 +40,7 @@ from build_pages import (  # noqa: E402
     M_TOP,
     PAGE_H,
     PAGE_W,
-    TEAR_X,
+    art_path,
     draw_activity,
     draw_art,
     draw_scissors,
