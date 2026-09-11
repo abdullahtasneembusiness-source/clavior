@@ -12,8 +12,9 @@ all drawn by code.
 ## Layout
 
 ```
+costs.jsonl                   append-only ledger at the repo root, one line
+                              per billable call, each tagged with its project
 book/
-  costs.jsonl                 append-only ledger, one line per billable call
   scripts/
     generate-images.mjs       Replicate / FLUX 1.1 Pro image generation
   book1/

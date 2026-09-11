@@ -28,7 +28,8 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOOK = join(HERE, "..", "book1");
 const ART = join(BOOK, "art");
-const LEDGER = join(HERE, "..", "costs.jsonl");
+/** One ledger for the whole repo, at its root. Each line names its project. */
+const LEDGER = join(HERE, "..", "..", "costs.jsonl");
 
 /** Hard stop for a single run, in dollars. The whole book is ~$1.20 of art. */
 const CEILING_USD = Number(process.env.CEILING_USD ?? 5);
